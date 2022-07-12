@@ -1,8 +1,11 @@
+extern crate dotenv;
+
+use dotenv::dotenv;
+use std::env;
 use structopt::StructOpt;
 use reqwest::Url;
 
 const GEOCODE_BASE_URL: &str = "https://maps.googleapis.com/maps/api/geocode/json?";
-const GEOCODE_API_KEY: &str = "API KEY";
 const PARCELS_BASE_URL: &str = "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?";
 
 // Command line arguments
@@ -12,9 +15,21 @@ struct Cli {
 }
 
 fn main() {
-    let args = Cli::from_args();
+    dotenv().ok();
+    let key = "GOOGLE_GEOCODING_API_KEY";
+    let geocode_api_key = match env::var(key) {
+        Ok(v) => v,
+        Err(_e) => panic!("${} is not set", key)
+    };
 
-    let geocoding_url = Url::parse_with_params(&GEOCODE_BASE_URL, &[("address", &args.address), ("key", &GEOCODE_API_KEY.to_string())]);
+    let args = Cli::from_args();
+    let geocoding_url = Url::parse_with_params(
+        &GEOCODE_BASE_URL,
+        [
+            ("address", &args.address),
+            ("key", &geocode_api_key.to_string())
+        ]
+    );
 
     match geocoding_url {
         Ok(url) => {
