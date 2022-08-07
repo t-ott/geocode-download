@@ -21,8 +21,8 @@ fn main() {
         Ok(v) => v,
         Err(_e) => panic!("${} is not set", key)
     };
-
     let args = Cli::from_args();
+
     let geocoding_url = Url::parse_with_params(
         &GEOCODE_BASE_URL,
         [
@@ -30,7 +30,6 @@ fn main() {
             ("key", &geocode_api_key.to_string())
         ]
     );
-
     match geocoding_url {
         Ok(url) => {
             let json_text = get_geocoding(url);
@@ -40,46 +39,52 @@ fn main() {
                     let bbox: [std::string::String; 4] = parse_geocoding(json);
                     get_parcels(bbox)
                 }
-                Err(_) => println!("JSON parsing error!")
+                Err(_) => println!("JSON parsing error.")
             }
         }
-        Err(_) => println!("URL parsing error!")
+        Err(_) => println!("URL parsing error.")
     }
 }
 
 fn get_geocoding(url: Url) -> std::string::String {
+    // Get JSON from Google Geocoding API
     println!("Sending request to Google Geocoding API...");
-    // println!("Sending get request to: {}", url.as_str());
     match reqwest::blocking::get(url) {
         Ok(response) => {
-            println!("Got response!");
+            println!("Got response.");
             if response.status() == reqwest::StatusCode::OK {
                 match response.text() {
                     Ok(text) => text,
-                    Err(_) => "Could not get response text!".to_string()
+                    Err(_) => {
+                        "Oops! Could not get response text from Google Geocoding.".to_string()
+                    }
                 }
             }
             else {
-                "Oops. Response status not OK.".to_string()
+                "Oops! Response status from Google Geocoding not OK.".to_string()
             }
         }
-        Err(_) => "Oops. Did not get response.".to_string()
+        Err(_) => "Oops! Did not get response from Google Geocoding.".to_string()
     }
 }
 
 fn parse_geocoding(json: serde_json::Value) -> [std::string::String; 4]{
-    // println!("{}", json.to_string())
+    // Extract a local bounding box from Google Geocoding API JSON response
     let xmin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lng"];
     let ymin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lat"];
     let xmax = &json["results"][0]["geometry"]["viewport"]["northeast"]["lng"];
     let ymax = &json["results"][0]["geometry"]["viewport"]["northeast"]["lat"];
-    let bbox: [std::string::String; 4] = [xmin.to_string(), ymin.to_string(), xmax.to_string(), ymax.to_string()];
+    let bbox: [std::string::String; 4] = [
+        xmin.to_string(),
+        ymin.to_string(),
+        xmax.to_string(),
+        ymax.to_string()
+    ];
     bbox
 }
 
 fn get_parcels(bbox: [std::string::String; 4]) {
-    // println!("{}", bbox.join(","));
-
+    // Send request to VCGI API for parcel data
     let bbox = bbox.join(",");
     let parcel_url = Url::parse_with_params(&PARCELS_BASE_URL, &[
         ("where", "1=1"),
@@ -95,25 +100,25 @@ fn get_parcels(bbox: [std::string::String; 4]) {
     match parcel_url {
         Ok(url) => {
             println!("Sending request to VCGI API...");
-            // println!("URL: {}", url.as_str());
             match reqwest::blocking::get(url) {
                 Ok(response) => {
-                    println!("Got response!");
+                    println!("Got response.");
                     if response.status() == reqwest::StatusCode::OK {
                         match response.text() {
-                            // Ok(text) => println!("{}", text),
                             Ok(text) => {
                                 std::fs::write("parcels.geojson", text).ok();
                                 println!("Data written to parcels.geojson")
                             }
-                            Err(_) => println!("Oops! Could not get response text.")
+                            Err(_) => println!(
+                                "Oops! Could not get response text from VCGI."
+                            )
                         }
                     }
-                    else { println!("Oops! Response status not OK.") }
+                    else { println!("Oops! Response status from VCGI not OK.") }
                 }
-                Err(_) => println!("Oops! Did not get response.")
+                Err(_) => println!("Oops! Did not get response from VCGI.")
             }
         }
-        Err(_) => println!("URL parsing Error!")
+        Err(_) => println!("URL parsing error.")
     }
 }
