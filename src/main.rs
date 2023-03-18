@@ -36,8 +36,13 @@ fn main() {
             let json: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&json_text);
             match json {
                 Ok(json) => {
-                    let bbox: [std::string::String; 4] = parse_geocoding(json);
-                    get_parcels(bbox)
+                    if json.get("error_message").is_some() {
+                        println!("The API returned an error.");
+                    }
+                    else {
+                        let bbox: [std::string::String; 4] = parse_geocoding(json);
+                        get_parcels(bbox)
+                    }
                 }
                 Err(_) => println!("JSON parsing error.")
             }
