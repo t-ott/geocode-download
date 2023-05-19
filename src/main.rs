@@ -4,7 +4,7 @@ use dotenv::dotenv;
 use std::env;
 use std::string::String;
 use structopt::StructOpt;
-use reqwest::Url;
+use reqwest::{Url, Error};
 
 const GEOCODE_URL: &str = "https://maps.googleapis.com/maps/api/geocode/json?";
 const PARCELS_URL: &str = "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/\
@@ -35,7 +35,7 @@ fn main() {
     );
     match geocoding_url {
         Ok(url) => {
-            let json_text = get_geocoding(url);
+            let json_text = get_geocoding(url).unwrap();
             let json: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&json_text);
             match json {
                 Ok(json) => {
@@ -54,26 +54,13 @@ fn main() {
     }
 }
 
-fn get_geocoding(url: Url) -> String {
+fn get_geocoding(url: Url) -> Result<String, Error> {
     // Get JSON from Google Geocoding API
     println!("Sending request to Google Geocoding API...");
-    match reqwest::blocking::get(url) {
-        Ok(response) => {
-            println!("Got response.");
-            if response.status() == reqwest::StatusCode::OK {
-                match response.text() {
-                    Ok(text) => text,
-                    Err(_) => {
-                        "Oops! Could not get response text from Google Geocoding.".to_string()
-                    }
-                }
-            }
-            else {
-                "Oops! Response status from Google Geocoding not OK.".to_string()
-            }
-        }
-        Err(_) => "Oops! Did not get response from Google Geocoding.".to_string()
-    }
+    let response = reqwest::blocking::get(url)?;
+    println!("Got response.");
+    let json_text = response.text()?;
+    Ok(json_text)
 }
 
 fn parse_geocoding(json: serde_json::Value) -> [String; 4]{
