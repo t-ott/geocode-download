@@ -32,25 +32,21 @@ fn main() {
             ("address", &args.address),
             ("key", &geocode_api_key.to_string())
         ]
-    );
-    match geocoding_url {
-        Ok(url) => {
-            let json_text = get_geocoding(url).unwrap();
-            let json: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&json_text);
-            match json {
-                Ok(json) => {
-                    if json.get("error_message").is_some() {
-                        println!("The API returned an error.");
-                    }
-                    else {
-                        let bbox: [String; 4] = parse_geocoding(json);
-                        get_parcels(bbox)
-                    }
-                }
-                Err(_) => println!("JSON parsing error.")
+    ).unwrap();
+
+    let json_text = get_geocoding(geocoding_url).unwrap();
+    let json: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&json_text);
+    match json {
+        Ok(json) => {
+            if json.get("error_message").is_some() {
+                println!("The API returned an error.");
+            }
+            else {
+                let bbox: [String; 4] = parse_geocoding(json);
+                get_parcels(bbox)
             }
         }
-        Err(_) => println!("URL parsing error.")
+        Err(_) => println!("JSON parsing error.")
     }
 }
 
@@ -90,30 +86,25 @@ fn get_parcels(bbox: [String; 4]) {
         ("spatialRel", "esriSpatialRelIntersects"),
         ("outSR", "4326"),
         ("f", "json")
-    ]);
+    ]).unwrap();
 
-    match parcel_url {
-        Ok(url) => {
-            println!("Sending request to VCGI API...");
-            match reqwest::blocking::get(url) {
-                Ok(response) => {
-                    println!("Got response.");
-                    if response.status() == reqwest::StatusCode::OK {
-                        match response.text() {
-                            Ok(text) => {
-                                std::fs::write("parcels.geojson", text).ok();
-                                println!("Data written to parcels.geojson")
-                            }
-                            Err(_) => println!(
-                                "Oops! Could not get response text from VCGI."
-                            )
-                        }
+    println!("Sending request to VCGI API...");
+    match reqwest::blocking::get(parcel_url) {
+        Ok(response) => {
+            println!("Got response.");
+            if response.status() == reqwest::StatusCode::OK {
+                match response.text() {
+                    Ok(text) => {
+                        std::fs::write("parcels.geojson", text).ok();
+                        println!("Data written to parcels.geojson")
                     }
-                    else { println!("Oops! Response status from VCGI not OK.") }
+                    Err(_) => println!(
+                        "Oops! Could not get response text from VCGI."
+                    )
                 }
-                Err(_) => println!("Oops! Did not get response from VCGI.")
             }
+            else { println!("Oops! Response status from VCGI not OK.") }
         }
-        Err(_) => println!("URL parsing error.")
+        Err(_) => println!("Oops! Did not get response from VCGI.")
     }
 }
