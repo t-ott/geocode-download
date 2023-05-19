@@ -5,8 +5,10 @@ use std::env;
 use structopt::StructOpt;
 use reqwest::Url;
 
-const GEOCODE_BASE_URL: &str = "https://maps.googleapis.com/maps/api/geocode/json?";
-const PARCELS_BASE_URL: &str = "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?";
+const GEOCODE_URL: &str = "https://maps.googleapis.com/maps/api/geocode/json?";
+const PARCELS_URL: &str = "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/\
+    services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/\
+    FeatureServer/0/query?";
 
 // Command line arguments
 #[derive(StructOpt)]
@@ -24,7 +26,7 @@ fn main() {
     let args = Cli::from_args();
 
     let geocoding_url = Url::parse_with_params(
-        &GEOCODE_BASE_URL,
+        &GEOCODE_URL,
         [
             ("address", &args.address),
             ("key", &geocode_api_key.to_string())
@@ -91,7 +93,7 @@ fn parse_geocoding(json: serde_json::Value) -> [std::string::String; 4]{
 fn get_parcels(bbox: [std::string::String; 4]) {
     // Send request to VCGI API for parcel data
     let bbox = bbox.join(",");
-    let parcel_url = Url::parse_with_params(&PARCELS_BASE_URL, &[
+    let parcel_url = Url::parse_with_params(&PARCELS_URL, &[
         ("where", "1=1"),
         ("outFields", "*"),
         ("geometry", &bbox), // xmin, ymin, xmax, ymax
