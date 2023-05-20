@@ -37,24 +37,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     .expect("Failed to parse geocoding URL params");
 
     let json_text = get_geocoding(geocoding_url)?;
-    let bbox = parse_geocoding(json_text)?;
+    let json: serde_json::Value = serde_json::from_str(&json_text)?;
+    let bbox = parse_geocoding(json);
     get_parcels(bbox)?;
     Ok(())
 }
 
 fn get_geocoding(url: Url) -> Result<String, reqwest::Error> {
-    // Get JSON from Google Geocoding API
     println!("Sending request to Google Geocoding API...");
     let response = reqwest::blocking::get(url)?;
     println!("Got response.");
     let json_text = response.text()?;
-    println!("json_text: {}", json_text);
     Ok(json_text)
 }
 
-fn parse_geocoding(json_text: String) -> Result<[String; 4], serde_json::Error> {
-    // Extract a local bounding box from Google Geocoding API JSON response
-    let json: serde_json::Value = serde_json::from_str(&json_text)?;
+fn parse_geocoding(json: serde_json::Value) -> [String; 4] {
+    if json["results"].as_array().unwrap().len() == 0 {
+        panic!("Google Geocoding did return any results")
+    }
+    // Extract a local bounding box from response
     let xmin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lng"];
     let ymin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lat"];
     let xmax = &json["results"][0]["geometry"]["viewport"]["northeast"]["lng"];
@@ -65,7 +66,7 @@ fn parse_geocoding(json_text: String) -> Result<[String; 4], serde_json::Error> 
         xmax.to_string(),
         ymax.to_string(),
     ];
-    Ok(bbox)
+    bbox
 }
 
 fn get_parcels(bbox: [String; 4]) -> Result<(), reqwest::Error> {
