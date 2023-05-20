@@ -2,9 +2,10 @@ extern crate dotenv;
 
 use dotenv::dotenv;
 use std::env;
+use std::error::Error;
 use std::string::String;
 use structopt::StructOpt;
-use reqwest::{Url, Error};
+use reqwest::{Url};
 
 const GEOCODE_URL: &str = "https://maps.googleapis.com/maps/api/geocode/json?";
 const PARCELS_URL: &str = "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/\
@@ -17,7 +18,7 @@ struct Cli {
     address: String
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     let key = "GOOGLE_GEOCODING_API_KEY";
     let geocode_api_key = match env::var(key) {
@@ -34,23 +35,13 @@ fn main() {
         ]
     ).unwrap();
 
-    let json_text = get_geocoding(geocoding_url).unwrap();
-    let json: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&json_text);
-    match json {
-        Ok(json) => {
-            if json.get("error_message").is_some() {
-                println!("The API returned an error.");
-            }
-            else {
-                let bbox: [String; 4] = parse_geocoding(json);
-                get_parcels(bbox);
-            }
-        }
-        Err(_) => println!("JSON parsing error.")
-    }
+    let json_text = get_geocoding(geocoding_url)?;
+    let bbox = parse_geocoding(json_text)?;
+    get_parcels(bbox)?;
+    Ok(())
 }
 
-fn get_geocoding(url: Url) -> Result<String, Error> {
+fn get_geocoding(url: Url) -> Result<String, reqwest::Error> {
     // Get JSON from Google Geocoding API
     println!("Sending request to Google Geocoding API...");
     let response = reqwest::blocking::get(url)?;
@@ -59,8 +50,9 @@ fn get_geocoding(url: Url) -> Result<String, Error> {
     Ok(json_text)
 }
 
-fn parse_geocoding(json: serde_json::Value) -> [String; 4]{
+fn parse_geocoding(json_text: String) -> Result<[String; 4], serde_json::Error>{
     // Extract a local bounding box from Google Geocoding API JSON response
+    let json: serde_json::Value = serde_json::from_str(&json_text)?;
     let xmin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lng"];
     let ymin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lat"];
     let xmax = &json["results"][0]["geometry"]["viewport"]["northeast"]["lng"];
@@ -71,10 +63,10 @@ fn parse_geocoding(json: serde_json::Value) -> [String; 4]{
         xmax.to_string(),
         ymax.to_string()
     ];
-    bbox
+    Ok(bbox)
 }
 
-fn get_parcels(bbox: [String; 4]) -> Result<(), Error> {
+fn get_parcels(bbox: [String; 4]) -> Result<(), reqwest::Error> {
     // Send request to VCGI API for parcel data
     let bbox = bbox.join(",");
     let parcel_url = Url::parse_with_params(&PARCELS_URL, &[
