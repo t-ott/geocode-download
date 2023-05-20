@@ -102,6 +102,10 @@ fn write_parcels(json: serde_json::Value) {
     if json["features"].as_array().unwrap().len() == 0 {
         panic!("No parcel features were returned")
     }
-    std::fs::write("parcels.geojson", serde_json::to_string_pretty(&json).unwrap()).unwrap();
+    std::fs::write(
+        "parcels.geojson",
+        serde_json::to_string_pretty(&json).unwrap(),
+    )
+    .unwrap();
     println!("Parcels written to parcels.geojson!")
 }
