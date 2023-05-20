@@ -36,10 +36,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .expect("Failed to parse geocoding URL params");
 
-    let json_text = get_geocoding(geocoding_url)?;
-    let json: serde_json::Value = serde_json::from_str(&json_text)?;
-    let bbox = parse_geocoding(json);
-    get_parcels(bbox)?;
+    let geocoding_json_text = get_geocoding(geocoding_url)?;
+    let geocoding_json: serde_json::Value = serde_json::from_str(&geocoding_json_text)?;
+    let bbox = parse_geocoding(geocoding_json);
+
+    let parcels_json_text = get_parcels(bbox)?;
+    let parcels_json: serde_json::Value = serde_json::from_str(&parcels_json_text)?;
+
+    write_parcels(parcels_json);
     Ok(())
 }
 
@@ -53,7 +57,7 @@ fn get_geocoding(url: Url) -> Result<String, reqwest::Error> {
 
 fn parse_geocoding(json: serde_json::Value) -> [String; 4] {
     if json["results"].as_array().unwrap().len() == 0 {
-        panic!("Google Geocoding did return any results")
+        panic!("Google Geocoding did not return any results")
     }
     // Extract a local bounding box from response
     let xmin = &json["results"][0]["geometry"]["viewport"]["southwest"]["lng"];
@@ -69,7 +73,7 @@ fn parse_geocoding(json: serde_json::Value) -> [String; 4] {
     bbox
 }
 
-fn get_parcels(bbox: [String; 4]) -> Result<(), reqwest::Error> {
+fn get_parcels(bbox: [String; 4]) -> Result<String, reqwest::Error> {
     // Send request to VCGI API for parcel data
     let bbox = bbox.join(",");
     let parcel_url = Url::parse_with_params(
@@ -91,7 +95,13 @@ fn get_parcels(bbox: [String; 4]) -> Result<(), reqwest::Error> {
     let response = reqwest::blocking::get(parcel_url)?;
     println!("Got response.");
     let response_text = response.text()?;
-    std::fs::write("parcels.geojson", response_text).ok();
-    println!("Parcels written to parcels.geojson!");
-    Ok(())
+    Ok(response_text)
+}
+
+fn write_parcels(json: serde_json::Value) {
+    if json["features"].as_array().unwrap().len() == 0 {
+        panic!("No parcel features were returned")
+    }
+    std::fs::write("parcels.geojson", serde_json::to_string_pretty(&json).unwrap()).unwrap();
+    println!("Parcels written to parcels.geojson!")
 }
