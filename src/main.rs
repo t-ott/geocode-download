@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ("key", &geocode_api_key.to_string()),
         ],
     )
-    .unwrap();
+    .expect("Failed to parse geocoding URL params");
 
     let json_text = get_geocoding(geocoding_url)?;
     let bbox = parse_geocoding(json_text)?;
@@ -48,6 +48,7 @@ fn get_geocoding(url: Url) -> Result<String, reqwest::Error> {
     let response = reqwest::blocking::get(url)?;
     println!("Got response.");
     let json_text = response.text()?;
+    println!("json_text: {}", json_text);
     Ok(json_text)
 }
 
@@ -83,7 +84,7 @@ fn get_parcels(bbox: [String; 4]) -> Result<(), reqwest::Error> {
             ("f", "json"),
         ],
     )
-    .unwrap();
+    .expect("Failed to parse parcel URL params");
 
     println!("Sending request to VCGI API...");
     let response = reqwest::blocking::get(parcel_url)?;
